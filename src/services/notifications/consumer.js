@@ -1,0 +1,2 @@
+// Consumer local demonstra deduplicação. Em produção, persistir eventId em Inbox antes do ack.
+export function makeNotificationConsumer({deliveryProvider}){const processed=new Set();return async function handle(event){if(processed.has(event.id))return {status:'duplicate'};await deliveryProvider.send({tenantId:event.tenantId,type:event.type,payload:event.payload});processed.add(event.id);return {status:'delivered'};};}
