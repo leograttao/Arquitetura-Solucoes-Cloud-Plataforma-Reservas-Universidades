@@ -1,11 +1,30 @@
 import { createReservationSlice } from '../../application/slices/reservations/create-reservation.js';
 import { cancelReservationSlice } from '../../application/slices/reservations/cancel-reservation.js';
-// Factory de handlers no formato de função serverless (AWS Lambda, Azure Functions etc.).
+import { listReservationsSlice } from '../../application/slices/reservations/list-reservations.js';
+
 export function makeReservationHandlers(deps) {
-  const create=createReservationSlice(deps), cancel=cancelReservationSlice(deps);
+  const createReservation = createReservationSlice(deps);
+  const cancelReservation = cancelReservationSlice(deps);
+  const listReservations = listReservationsSlice(deps);
+
   return {
-    create: async ({ principal, body }) => create({ tenantId:principal.tenantId, actorId:principal.sub, ...body }),
-    cancel: async ({ principal, params }) => cancel({ tenantId:principal.tenantId, actorId:principal.sub, reservationId:params.id }),
-    list: async ({ principal }) => deps.reservations.list(principal.tenantId)
+    create: async ({ principal, body }) =>
+      createReservation({
+        tenantId: principal.tenantId,
+        actorId: principal.sub,
+        ...body
+      }),
+
+    cancel: async ({ principal, params }) =>
+      cancelReservation({
+        tenantId: principal.tenantId,
+        actorId: principal.sub,
+        reservationId: params.id
+      }),
+
+    list: async ({ principal }) =>
+      listReservations({
+        tenantId: principal.tenantId
+      })
   };
 }
