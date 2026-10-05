@@ -1,0 +1,8 @@
+import test from 'node:test'; import assert from 'node:assert/strict';
+import { MemoryReservationStore } from '../src/adapters/memory/reservation-store.js'; import { MemoryWaitlistStore } from '../src/adapters/memory/waitlist-store.js'; import { InMemoryEventBus } from '../src/adapters/events/in-memory-event-bus.js'; import { createReservationSlice } from '../src/application/slices/reservations/create-reservation.js';
+const fixture=()=>{const reservations=new MemoryReservationStore(),waitlist=new MemoryWaitlistStore(),events=new InMemoryEventBus();return{reservations,waitlist,events,create:createReservationSlice({reservations,waitlist,events})};};
+const slot={tenantId:'uni-1',actorId:'student-1',roomId:'sala-1',startsAt:'2026-10-06T10:00:00Z',endsAt:'2026-10-06T11:00:00Z'};
+test('confirma uma reserva e publica evento',async()=>{const f=fixture();const r=await f.create(slot);assert.equal(r.outcome,'confirmed');assert.equal(f.events.history()[0].type,'ReservationConfirmed');});
+test('coloca conflito na fila e não duplica reserva',async()=>{const f=fixture();await f.create(slot);const r=await f.create({...slot,actorId:'student-2'});assert.equal(r.outcome,'waitlisted');assert.equal((await f.reservations.list('uni-1')).length,1);assert.equal((await f.waitlist.list('uni-1')).length,1);});
+test('isola reservas por universidade',async()=>{const f=fixture();const r=await f.create(slot);assert.equal(await f.reservations.findById('uni-2',r.reservation.id),null);});
+test('bloqueia dois pedidos simultâneos para o mesmo horário',async()=>{const f=fixture();const results=await Promise.all([f.create(slot),f.create({...slot,actorId:'student-2'})]);assert.deepEqual(results.map(x=>x.outcome).sort(),['confirmed','waitlisted']);});
