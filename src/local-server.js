@@ -1,0 +1,17 @@
+import http from 'node:http'; import { readFile } from 'node:fs/promises'; import { fileURLToPath } from 'node:url'; import { resolve } from 'node:path';
+import { MemoryReservationStore } from './adapters/memory/reservation-store.js';
+import { MemoryWaitlistStore } from './adapters/memory/waitlist-store.js';
+import { MemoryCatalogStore } from './adapters/memory/catalog-store.js'; import { MemoryUniversityStore } from './adapters/memory/university-store.js';
+import { InMemoryEventBus } from './adapters/events/in-memory-event-bus.js';
+import { makeReservationHandlers } from './services/reservations/handlers.js'; import { promoteNextWaitlistSlice } from './application/slices/waitlist/promote-next.js';
+import { makeCatalogHandlers } from './services/catalog/handlers.js'; import { makeUniversityHandlers } from './services/universities/handlers.js';
+import { StudentBff } from './bff/student/bff.js'; import { AdminBff } from './bff/admin/bff.js';
+import { makeTokenVerifier } from './gateway/auth.js'; import { ApiGateway } from './gateway/api-gateway.js';
+const reservations=new MemoryReservationStore(), waitlist=new MemoryWaitlistStore(), events=new InMemoryEventBus();
+const catalog=new MemoryCatalogStore(), universities=new MemoryUniversityStore(); const catalogHandlers=makeCatalogHandlers({catalog}); const universityHandlers=makeUniversityHandlers({universities,events});
+const handlers=makeReservationHandlers({reservations,waitlist,events});
+events.subscribe('ReservationCancelled',promoteNextWaitlistSlice({reservations,waitlist,events}));
+const gateway=new ApiGateway({verifier:makeTokenVerifier({'student-demo':{sub:'student-1',tenantId:'uni-1',role:'student'},'admin-demo':{sub:'admin-1',tenantId:'uni-1',role:'admin'},'platform-demo':{sub:'operator-1',tenantId:'platform',role:'platform-admin'}}),studentBff:new StudentBff(handlers,catalogHandlers),adminBff:new AdminBff(handlers,catalogHandlers,universityHandlers),universityHandlers});
+const appRoot=resolve(fileURLToPath(new URL('../apps/',import.meta.url)));
+const server=http.createServer(async(req,res)=>{const url=new URL(req.url,'http://localhost');if(req.method==='GET'&&(/^\/(student|admin)(\/app\.js|\/)?$/.test(url.pathname))){const app=url.pathname.includes('student')?'student':'admin';const asset=url.pathname.endsWith('/app.js')?'app.js':'index.html';try{const content=await readFile(resolve(appRoot,app,asset));res.writeHead(200,{'content-type':asset.endsWith('.js')?'text/javascript; charset=utf-8':'text/html; charset=utf-8'});res.end(content);return;}catch{res.writeHead(404);res.end();return;}}let raw='';for await(const chunk of req) raw+=chunk;let body={};try{body=raw?JSON.parse(raw):{};}catch{} const result=await gateway.handle({method:req.method,path:url.pathname,headers:req.headers,body,query:Object.fromEntries(url.searchParams.entries())});res.writeHead(result.status,{'content-type':'application/json'});res.end(JSON.stringify(result.body));});
+server.listen(8080,'127.0.0.1',()=>console.log('Demo local em http://localhost:8080'));
