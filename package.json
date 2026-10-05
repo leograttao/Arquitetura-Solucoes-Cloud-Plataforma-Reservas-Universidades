@@ -1,0 +1,9 @@
+{
+  "name": "plataforma-reservas-salas",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "description": "Implementação de referência: gateway, BFFs, funções, eventos e slices verticais",
+  "scripts": {"test": "node --test", "start": "node src/local-server.js"},
+  "engines": {"node": ">=22"}
+}
