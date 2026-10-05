@@ -1,0 +1,3 @@
+import test from 'node:test'; import assert from 'node:assert/strict'; import { makeTokenVerifier } from '../src/gateway/auth.js';
+test('recusa token ausente ou desconhecido',async()=>{const v=makeTokenVerifier({});await assert.rejects(()=>v({headers:{}}),{statusCode:401});await assert.rejects(()=>v({headers:{authorization:'Bearer no'}}),{statusCode:401});});
+test('tenant vem de claims verificados e não do body',async()=>{const v=makeTokenVerifier({t:{sub:'u1',tenantId:'uni-1',role:'student'}});assert.equal((await v({headers:{authorization:'Bearer t'},body:{tenantId:'uni-2'}})).tenantId,'uni-1');});
