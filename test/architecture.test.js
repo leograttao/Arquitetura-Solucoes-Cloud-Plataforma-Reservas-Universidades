@@ -1,0 +1,6 @@
+import test from 'node:test'; import assert from 'node:assert/strict'; import { readdir, readFile } from 'node:fs/promises'; import { join } from 'node:path';
+const root=new URL('../src/',import.meta.url).pathname;
+async function walk(dir){let out=[];for(const e of await readdir(dir,{withFileTypes:true})){const p=join(dir,e.name);out.push(...(e.isDirectory()?await walk(p):p.endsWith('.js')?[p]:[]));}return out;}
+test('domínio e casos de uso não dependem de adaptadores, gateway ou BFF',async()=>{for(const p of await walk(root)){if(!p.includes('/domain/')&&!p.includes('/application/'))continue;const s=await readFile(p,'utf8');assert.doesNotMatch(s,/from ['"][^'"]*(adapters|gateway|bff|services)\//,p);}});
+test('BFF e gateway não importam repositórios/adaptadores de infraestrutura diretamente',async()=>{for(const p of await walk(root)){if(!p.includes('/bff/')&&!p.includes('/gateway/'))continue;const s=await readFile(p,'utf8');assert.doesNotMatch(s,/from ['"][^'"]*adapters\//,p);}});
+test('slice de reserva depende de portas e domínio, sem acessar outro serviço',async()=>{const p=join(root,'application/slices/reservations/create-reservation.js');const s=await readFile(p,'utf8');assert.doesNotMatch(s,/services\//);assert.doesNotMatch(s,/adapters\//);});
