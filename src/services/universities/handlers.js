@@ -1,0 +1,2 @@
+import {registerUniversitySlice} from '../../application/slices/universities/register-university.js';import {decideUniversitySlice} from '../../application/slices/universities/decide-university.js';
+export function makeUniversityHandlers(deps){const register=registerUniversitySlice(deps),decide=decideUniversitySlice(deps);return{register:({body})=>register(body),decide:({principal,params,body})=>decide({actorRole:principal.role,universityId:params.id,decision:body.decision})};}
