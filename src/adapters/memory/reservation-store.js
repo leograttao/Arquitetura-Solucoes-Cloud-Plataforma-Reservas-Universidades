@@ -1,7 +1,13 @@
 import { ReservationConflict, overlaps } from '../../domain/reservations/model.js';
-// Isolado no serviço Booking. A gravação serializada protege concorrência no protótipo.
-export class MemoryReservationStore {
-  #items = new Map(); #tail = Promise.resolve();
+import { ReservationRepository } from '../../ports/reservation-repository.js';
+
+export class MemoryReservationStore extends ReservationRepository {
+  #items = new Map();
+  #tail = Promise.resolve();
+
+  constructor() {
+    super();
+  }
   async createIfAvailable(candidate) {
     let release; const previous=this.#tail; this.#tail=new Promise(r=>release=r); await previous;
     try {
