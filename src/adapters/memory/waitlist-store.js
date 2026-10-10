@@ -4,4 +4,9 @@ export class MemoryWaitlistStore {
   async next(tenantId,roomId,startsAt,endsAt) { return this.#items.find(x=>x.tenantId===tenantId&&x.roomId===roomId&&x.startsAt===startsAt&&x.endsAt===endsAt&&x.status==='waiting') ?? null; }
   async remove(tenantId,id) { const x=this.#items.find(x=>x.id===id&&x.tenantId===tenantId); if(x) x.status='promoted'; return x?structuredClone(x):null; }
   async list(tenantId) { return this.#items.filter(x=>x.tenantId===tenantId).map(x=>structuredClone(x)); }
+  async listByActor(tenantId, actorId) {
+  return this.#items
+    .filter((item) => item.tenantId === tenantId && item.actorId === actorId)
+    .map((item) => structuredClone(item));
+  }
 }
