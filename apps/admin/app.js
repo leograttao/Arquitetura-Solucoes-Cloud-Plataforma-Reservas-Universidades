@@ -1,11 +1,7 @@
-const token = 'admin-demo';
 const app = document.getElementById('app');
 const state = { page: 'inicio', rooms: [], reservations: [], filter: 'all' };
 const profileKey = 'unisal-profile-admin';
-const headers = {
-  authorization: `Bearer ${token}`,
-  'content-type': 'application/json'
-};
+const sessionKey = 'unisal-admin-session';
 
 const escapeHtml = (value = '') =>
   String(value).replace(/[&<>"']/g, (char) => ({
@@ -46,9 +42,14 @@ function profile() {
 }
 
 async function api(path, options = {}) {
+  const token = getSession()?.token;
   const response = await fetch(path, {
     ...options,
-    headers: { ...headers, ...options.headers }
+    headers: {
+      ...(token ? { authorization: `Bearer ${token}` } : {}),
+      'content-type': 'application/json',
+      ...options.headers
+    }
   });
 
   const data = await response.json();
@@ -58,6 +59,84 @@ async function api(path, options = {}) {
   }
 
   return data;
+}
+
+function getSession() {
+  try {
+    return JSON.parse(localStorage.getItem(sessionKey));
+  } catch {
+    return null;
+  }
+}
+
+function showLogin(errorMessage = '') {
+  app.innerHTML = `
+    <main class="main platform-main">
+      <header class="brand login-brand">
+        <span class="brand-mark">U</span>
+        <span>UniSalas<small>Portal administrativo</small></span>
+      </header>
+      <section class="card login-card">
+        <div class="card-head">
+          <div>
+            <span class="eyebrow">Acesso restrito</span>
+            <h2>Entrar como administrador</h2>
+            <p>Use a conta criada pela administração da plataforma.</p>
+          </div>
+        </div>
+        <form id="login-form">
+          <div class="fields">
+            <div class="field full">
+              <label for="login-email">E-mail institucional</label>
+              <input id="login-email" type="email" required>
+            </div>
+            <div class="field full">
+              <label for="login-password">Senha</label>
+              <input id="login-password" type="password" required>
+            </div>
+          </div>
+          <div class="form-actions">
+            <button class="button button-primary" type="submit">Entrar</button>
+          </div>
+          <div class="status ${errorMessage ? 'visible error' : ''}">
+            ${escapeHtml(errorMessage)}
+          </div>
+        </form>
+      </section>
+    </main>`;
+
+  document.getElementById('login-form').onsubmit = async (event) => {
+    event.preventDefault();
+
+    try {
+      const result = await api('/auth/login', {
+        method: 'POST',
+        body: JSON.stringify({
+          email: document.getElementById('login-email').value,
+          password: document.getElementById('login-password').value
+        })
+      });
+
+      if (result.principal.role !== 'admin') {
+        throw new Error('Esta conta não tem acesso administrativo.');
+      }
+
+      localStorage.setItem(sessionKey, JSON.stringify(result));
+      await loadData();
+    } catch (error) {
+      showLogin(error.message);
+    }
+  };
+}
+
+async function loadData() {
+  try {
+    await refreshData();
+    render();
+  } catch (error) {
+    localStorage.removeItem(sessionKey);
+    showLogin(error.message);
+  }
 }
 
 async function refreshData() {
@@ -574,6 +653,11 @@ function helpPage() {
 }
 
 function render() {
+  if (!getSession()) {
+    showLogin();
+    return;
+  }
+
   const pages = {
     inicio: dashboard,
     salas: roomsPage,
@@ -618,8 +702,11 @@ function bindPage() {
         body: JSON.stringify({ name, capacity })
       });
 
-      await refreshData();
-      render();
+      if (getSession()) {
+        await loadData();
+      } else {
+        showLogin();
+      }
       toast('Sala cadastrada e disponível para os alunos.');
     } catch (error) {
       showStatus(error.message, 'error');

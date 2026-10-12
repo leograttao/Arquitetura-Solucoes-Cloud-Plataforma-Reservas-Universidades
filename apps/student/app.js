@@ -1,4 +1,3 @@
-const token = 'student-demo';
 const app = document.getElementById('app');
 const state = {
   page: 'inicio',
@@ -8,10 +7,7 @@ const state = {
 };
 
 const profileKey = 'unisal-profile-student';
-const headers = {
-  authorization: `Bearer ${token}`,
-  'content-type': 'application/json'
-};
+const sessionKey = 'unisal-student-session';
 
 const escapeHtml = (value = '') =>
   String(value).replace(/[&<>"']/g, (char) => ({
@@ -63,9 +59,14 @@ function toast(message) {
 }
 
 async function api(path, options = {}) {
+  const token = getSession()?.token;
   const response = await fetch(path, {
     ...options,
-    headers: { ...headers, ...options.headers }
+    headers: {
+      ...(token ? { authorization: `Bearer ${token}` } : {}),
+      'content-type': 'application/json',
+      ...options.headers
+    }
   });
 
   const data = await response.json();
@@ -75,6 +76,85 @@ async function api(path, options = {}) {
   }
 
   return data;
+}
+
+function getSession() {
+  try {
+    return JSON.parse(localStorage.getItem(sessionKey));
+  } catch {
+    return null;
+  }
+}
+
+function showLogin(errorMessage = '') {
+  app.innerHTML = `
+    <main class="main platform-main">
+      <header class="brand login-brand">
+        <span class="brand-mark">U</span>
+        <span>UniSalas<small>Portal do aluno</small></span>
+      </header>
+      <section class="card login-card">
+        <div class="card-head">
+          <div>
+            <span class="eyebrow">Acesso do aluno</span>
+            <h2>Entrar para reservar</h2>
+            <p>Use o e-mail institucional validado pela universidade.</p>
+          </div>
+        </div>
+        <form id="login-form">
+          <div class="fields">
+            <div class="field full">
+              <label for="login-email">E-mail institucional</label>
+              <input id="login-email" type="email" required>
+            </div>
+            <div class="field full">
+              <label for="login-password">Senha</label>
+              <input id="login-password" type="password" required>
+            </div>
+          </div>
+          <div class="form-actions">
+            <button class="button button-primary" type="submit">Entrar</button>
+          </div>
+          <div class="status ${errorMessage ? 'visible error' : ''}">
+            ${escapeHtml(errorMessage)}
+          </div>
+        </form>
+      </section>
+    </main>`;
+
+  document.getElementById('login-form').onsubmit = async (event) => {
+    event.preventDefault();
+
+    try {
+      const result = await api('/auth/login', {
+        method: 'POST',
+        body: JSON.stringify({
+          email: document.getElementById('login-email').value,
+          password: document.getElementById('login-password').value
+        })
+      });
+
+      if (result.principal.role !== 'student') {
+        throw new Error('Esta conta não tem acesso ao portal do aluno.');
+      }
+
+      localStorage.setItem(sessionKey, JSON.stringify(result));
+      localStorage.setItem(profileKey, JSON.stringify(result.principal));
+      await loadData();
+    } catch (error) {
+      showLogin(error.message);
+    }
+  };
+}
+
+async function loadData() {
+  try {
+    await refreshData();
+    render();
+  } catch (error) {
+    localStorage.removeItem(sessionKey);
+    showLogin(error.message);
+  }
 }
 
 async function refreshData() {
@@ -558,6 +638,11 @@ function helpPage() {
 }
 
 function render() {
+  if (!getSession()) {
+    showLogin();
+    return;
+  }
+
   const pages = {
     inicio: dashboard,
     reservar: reservePage,
@@ -659,8 +744,11 @@ function bindPage() {
 
   document.getElementById('refresh')
     ?.addEventListener('click', async () => {
-      await refreshData();
-      render();
+      if (getSession()) {
+        await loadData();
+      } else {
+        showLogin();
+      }
     });
 
   document.querySelectorAll('[data-cancel]').forEach((button) => {
