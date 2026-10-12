@@ -1,0 +1,1 @@
+{"name":"unisalas-products","private":true,"type":"module","scripts":{"start":"node server.js"},"optionalDependencies":{"mongodb":"^6.9.0"}}

@@ -1,0 +1,23 @@
+openapi: 3.0.3
+info:
+  title: UniSalas distributed API
+  version: 1.0.0
+servers:
+  - url: https://bff.example.invalid
+paths:
+  /aggregated-data:
+    get:
+      summary: Aggregate products and orders
+      responses:
+        '200': { description: Aggregated data }
+  /products:
+    get: { responses: { '200': { description: Product list } } }
+    post: { responses: { '201': { description: Product created } } }
+  /orders:
+    get: { responses: { '200': { description: Order list } } }
+    post: { responses: { '201': { description: Order created } } }
+  /orders/enrich:
+    post:
+      summary: Enrich an order through Azure Function
+      responses:
+        '200': { description: Enriched order }

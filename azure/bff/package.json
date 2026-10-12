@@ -1,0 +1,1 @@
+{"name":"unisalas-bff","private":true,"type":"module","scripts":{"start":"node server.js"},"optionalDependencies":{"@azure/service-bus":"^7.9.5"}}

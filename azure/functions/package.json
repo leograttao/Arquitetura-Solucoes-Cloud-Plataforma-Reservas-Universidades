@@ -1,0 +1,1 @@
+{"name":"unisalas-functions","private":true,"type":"module","scripts":{"start":"func start"},"dependencies":{"@azure/functions":"^4.5.0"}}
